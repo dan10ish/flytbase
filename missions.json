@@ -1,0 +1,30 @@
+{
+  "primary_mission": {
+    "drone_id": "primary_01",
+    "waypoints": [{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 100, "y": 100}],
+    "start_time": 800,  
+    "end_time": 810     
+  },
+  "simulated_missions": [
+    {
+      "drone_id": "sim_A_conflict",
+      "waypoints": [
+        {"x": 50, "y": -10, "timestamp": 803}, 
+        {"x": 50, "y": 10, "timestamp": 806}  
+      ]
+    },
+    {
+      "drone_id": "sim_B_clear",
+      "waypoints": [
+        {"x": 0, "y": 50, "timestamp": 900}, 
+        {"x": 10, "y": 50, "timestamp": 905}  
+      ]
+    },
+    {
+      "drone_id": "sim_C_waypoint_clash",
+      "waypoints": [
+        {"x": 100, "y": 0, "timestamp": 805} 
+      ]
+    }
+  ]
+} 
