@@ -24,9 +24,9 @@ Here's a phased approach. Tick off checkpoints as you complete them.
 * **Objective:** Implement the fundamental spatial and temporal conflict detection for 2D drone paths.
 * **Steps & Actions:**
     1.  **Understand Input/Output:**
-        * Define how you'll represent the primary drone's mission (list of (x,y) waypoints, overall start/end time).
-        * Define how you'll represent simulated drone flights: list of (x,y) waypoints, with specific timings provided for *each waypoint*.
-        * Decide on a simple data structure for simulated flights (e.g., list of objects or dictionaries). Initially, these scenarios will be ingested from JSON files. Hardcoding a few scenarios for early testing is also acceptable.
+        * Define how you'll represent the primary drone's mission: list of (x,y) waypoints, overall start/end time (provided as integer HHMM, e.g., `1430` for 2:30 PM).
+        * Define how you'll represent simulated drone flights: list of (x,y) waypoints, with specific timings provided for *each waypoint* (as integer HHMM).
+        * Decide on a simple data structure (using `models.py` with `Waypoint` having `timestamp_minutes` field). Initially, these scenarios will be ingested from JSON files expecting HHMM integer times.
     2.  **Implement Path Segmentation:**
         * Write functions to break down a list of waypoints into line segments (e.g., a segment is between waypoint A and waypoint B).
     3.  **Spatial Check Implementation (2D):**
@@ -40,9 +40,9 @@ Here's a phased approach. Tick off checkpoints as you complete them.
         * Additionally, implement a check to ensure no two drones (primary or simulated) occupy the exact same waypoint coordinates at the exact same time.
         * Log any potential spatial conflicts, including segment proximity/intersections and simultaneous waypoint occupations.
     4.  **Temporal Check Implementation (2D):**
-        * **Crucial:** You need to determine *when* each drone is on a particular segment.
-            * Assume a constant speed for the primary drone to complete its entire mission within the given time window. Distribute this time across its path segments to estimate entry/exit times for each segment.
-            * For simulated drones, their timings should allow you to determine their entry/exit times for their segments.
+        * **Crucial:** You need to determine *when* each drone is on a particular segment (using the `timestamp_minutes` field from `Waypoint` objects).
+            * Assume a constant speed for the primary drone to complete its entire mission within the given time window (calculated in minutes). Distribute this time across its path segments to estimate entry/exit times (in minutes since midnight) for each segment.
+            * For simulated drones, their waypoint timings (already in minutes since midnight) allow you to determine their entry/exit times for their segments.
         * If a spatial conflict (or near-miss within buffer) is detected:
             * Compare the time intervals during which the primary drone is on its conflicting segment and the simulated drone is on its conflicting segment.
             * If these time intervals overlap, you have a spatio-temporal conflict.
