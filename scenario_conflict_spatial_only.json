@@ -1,0 +1,20 @@
+{
+  "primary_mission": {
+    "drone_id": "P_SpatialOnly",
+    "waypoints": [
+      {"x": 0, "y": 0},
+      {"x": 100, "y": 100}
+    ],
+    "start_time": 1400, 
+    "end_time": 1410    
+  },
+  "simulated_missions": [
+    {
+      "drone_id": "S_Crosses_Later",
+      "waypoints": [
+        {"x": 0, "y": 100, "timestamp": 1500}, 
+        {"x": 100, "y": 0, "timestamp": 1510} 
+      ]
+    }
+  ]
+} 

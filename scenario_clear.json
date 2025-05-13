@@ -1,0 +1,27 @@
+{
+  "primary_mission": {
+    "drone_id": "P_Clear",
+    "waypoints": [
+      {"x": 0, "y": 0},
+      {"x": 100, "y": 0}
+    ],
+    "start_time": 1000, 
+    "end_time": 1010    
+  },
+  "simulated_missions": [
+    {
+      "drone_id": "S_Far",
+      "waypoints": [
+        {"x": 0, "y": 100, "timestamp": 1000}, 
+        {"x": 100, "y": 100, "timestamp": 1010} 
+      ]
+    },
+    {
+      "drone_id": "S_Later",
+      "waypoints": [
+        {"x": 0, "y": 10, "timestamp": 1100}, 
+        {"x": 100, "y": 10, "timestamp": 1110} 
+      ]
+    }
+  ]
+} 

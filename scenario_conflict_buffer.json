@@ -1,0 +1,20 @@
+{
+  "primary_mission": {
+    "drone_id": "P_Buffer",
+    "waypoints": [
+      {"x": 0, "y": 0},
+      {"x": 100, "y": 0}
+    ],
+    "start_time": 1200, 
+    "end_time": 1210   
+  },
+  "simulated_missions": [
+    {
+      "drone_id": "S_CloseCall",
+      "waypoints": [
+        {"x": 50, "y": 2, "timestamp": 1204}, 
+        {"x": 50, "y": 20, "timestamp": 1208} 
+      ]
+    }
+  ]
+} 
