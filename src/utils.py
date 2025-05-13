@@ -4,7 +4,7 @@ import math
 from typing import List, Dict, Any, Tuple
 
 # Assuming models.py is in the same directory or accessible via PYTHONPATH
-from models import Waypoint, DroneMission
+from .models import Waypoint, DroneMission
 
 def _parse_hhmm_to_minutes(hhmm: int) -> int:
     """Converts time in HHMM integer format to minutes since midnight (0-1439)."""

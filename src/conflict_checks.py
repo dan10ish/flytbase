@@ -1,7 +1,7 @@
 import math
 from typing import Tuple, List
 
-from models import Waypoint, DroneMission
+from .models import Waypoint, DroneMission
 
 # Import shapely - ensure it's in requirements.txt and installed
 from shapely.geometry import LineString, Point

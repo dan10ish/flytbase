@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple
 import re # For parsing conflict details
 
 # Assuming models.py is accessible
-from models import DroneMission, Waypoint
+from .models import DroneMission, Waypoint
 
 # Define colors for plotting
 PRIMARY_COLOR = 'blue'

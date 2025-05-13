@@ -4,10 +4,10 @@ import argparse
 from typing import List, Tuple, Optional
 
 # Import core functions from other modules
-from utils import load_missions_from_json
-from conflict_checks import find_conflicts
-from visualization import plot_missions
-from models import DroneMission
+from .utils import load_missions_from_json
+from .conflict_checks import find_conflicts
+from .visualization import plot_missions
+from .models import DroneMission
 
 def check_mission_conflicts(
     mission_file_path: str, 
