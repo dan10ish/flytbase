@@ -1,5 +1,6 @@
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D # Added for 3D plotting
+from matplotlib.animation import FuncAnimation # Added for animation
 from typing import List, Optional, Tuple
 import re # For parsing conflict details
 import math # Added for ceil
@@ -12,6 +13,66 @@ PRIMARY_COLOR = 'blue'
 SIMULATED_COLOR = 'gray'
 CONFLICT_COLOR = 'red'
 BUFFER_COLOR = 'lightblue' # For potential buffer visualization
+
+# Helper function to interpolate drone position at a given time for 3D animation
+def _interpolate_position_3d(waypoints: List[Waypoint], time_minutes: float) -> Optional[Tuple[float, float, float]]:
+    """Calculates a drone's (x,y,z) position at a specific time by interpolating between waypoints.
+
+    Returns (x,y,z) tuple or None if time is outside mission or mission has < 2 waypoints.
+    """
+    if not waypoints or len(waypoints) < 1:
+        return None
+
+    # If only one waypoint, drone is at that waypoint for its entire duration (if time matches)
+    # For animation, we'll consider it fixed if time is within its segment (which is just the point itself)
+    if len(waypoints) == 1:
+        wp = waypoints[0]
+        # This logic might need refinement based on how single-waypoint missions are defined time-wise
+        # For now, assume it's at this spot if the animation time is its timestamp.
+        # A better approach for animation might be to ensure missions always have start/end or segments.
+        if math.isclose(wp.timestamp_minutes, time_minutes):
+             return wp.x, wp.y, wp.z
+        # If not at the exact time, and only one waypoint, it's tricky. 
+        # Let's assume it's at its first waypoint if time is before/at its first timestamp
+        # and last waypoint if time is after/at its last timestamp.
+        if time_minutes <= wp.timestamp_minutes: 
+            return wp.x, wp.y, wp.z
+        else: # time_minutes > wp.timestamp_minutes (and only one point)
+            return wp.x, wp.y, wp.z # Stays at its only point after its time
+
+    # Find the segment where the current time falls
+    # Sort waypoints by time just in case, though they should be loaded sorted
+    sorted_waypoints = sorted(waypoints, key=lambda wp: wp.timestamp_minutes)
+
+    # If time is before the first waypoint, position at the first waypoint
+    if time_minutes < sorted_waypoints[0].timestamp_minutes:
+        # For animation, we might want it to be invisible or at start point until its time starts.
+        # Returning first point for now to keep it simple.
+        return sorted_waypoints[0].x, sorted_waypoints[0].y, sorted_waypoints[0].z
+
+    # If time is after the last waypoint, position at the last waypoint
+    if time_minutes > sorted_waypoints[-1].timestamp_minutes:
+        return sorted_waypoints[-1].x, sorted_waypoints[-1].y, sorted_waypoints[-1].z
+
+    for i in range(len(sorted_waypoints) - 1):
+        wp1 = sorted_waypoints[i]
+        wp2 = sorted_waypoints[i+1]
+
+        if wp1.timestamp_minutes <= time_minutes <= wp2.timestamp_minutes:
+            # If segment has zero duration, drone is at wp1's position
+            if math.isclose(wp1.timestamp_minutes, wp2.timestamp_minutes):
+                return wp1.x, wp1.y, wp1.z
+            
+            # Interpolate position
+            time_ratio = (time_minutes - wp1.timestamp_minutes) / (wp2.timestamp_minutes - wp1.timestamp_minutes)
+            
+            interp_x = wp1.x + time_ratio * (wp2.x - wp1.x)
+            interp_y = wp1.y + time_ratio * (wp2.y - wp1.y)
+            interp_z = wp1.z + time_ratio * (wp2.z - wp1.z)
+            return interp_x, interp_y, interp_z
+    
+    # Should be covered by checks above, but as a fallback, return last waypoint position
+    return sorted_waypoints[-1].x, sorted_waypoints[-1].y, sorted_waypoints[-1].z
 
 def _plot_path(ax, waypoints: List[Waypoint], color: str, label: str, linestyle: str = '-', marker: str = 'o', markersize: int = 5, is_3d: bool = False):
     """Helper function to plot a single drone path (2D or 3D)."""
@@ -475,7 +536,108 @@ def plot_missions(
             fig_chunk_3d.tight_layout(rect=[0.02, 0.02, 0.85, 0.93])
             fig_chunk_3d.suptitle(f"Individual Conflicts (Sim Drones {chunk_start_idx + 1}-{min(chunk_start_idx + max_subplots_per_grid_fig, num_sim_missions)}) (3D)", fontsize=10, y=0.98)
 
+    # --- Generate 4D Animation Plot ---
+    if primary_mission and primary_mission.waypoints: # Ensure there is something to animate
+        print("\nGenerating 4D (3D + Time) animation...")
+        try:
+            # Call the new animation function
+            # The animation object needs to be held in scope to run.
+            # We store it in the global Held_animations list.
+            plot_animated_3d_missions(primary_mission, simulated_missions, safety_buffer)
+        except Exception as anim_e:
+            print(f"Warning: Failed to generate 4D animation. Error: {anim_e}")
+
+    plt.show(block=False) # This ensures all previously created static figures are shown
+
+# --- Animation Function ---
+Held_animations = [] # To keep animation objects in scope
+
+def plot_animated_3d_missions(
+    primary_mission: DroneMission,
+    simulated_missions: List[DroneMission],
+    safety_buffer: float # Keep for title consistency, though not directly used in animation logic here
+):
+    """Generates an animated 3D plot of drone missions over time."""
+    fig = plt.figure(figsize=(12, 9))
+    ax = fig.add_subplot(111, projection='3d')
+
+    ax.set_xlabel("X Coordinate")
+    ax.set_ylabel("Y Coordinate")
+    ax.set_zlabel("Z Coordinate (Altitude)")
+    ax.set_title(f"Animated Drone Missions (3D)")
+
+    all_missions = [primary_mission] + simulated_missions
+    all_waypoints = [wp for mission in all_missions for wp in mission.waypoints if mission.waypoints]
+    if not all_waypoints:
+        plt.close(fig) # Close figure if no waypoints to animate
+        return None
+
+    min_time = min(wp.timestamp_minutes for wp in all_waypoints)
+    max_time = max(wp.timestamp_minutes for wp in all_waypoints)
+    if min_time == max_time: max_time +=1 # Ensure duration for animation if all at same time
+
+    time_range = max_time - min_time
+    num_frames = 200 # Number of animation frames
+    time_step = time_range / num_frames
+
+    # Plot static paths first as a backdrop
+    _plot_path(ax, primary_mission.waypoints, PRIMARY_COLOR, f"Primary ({primary_mission.drone_id}) Path", linestyle='--', marker='', is_3d=True)
+    sim_colors_anim = plt.cm.viridis_r([i/len(simulated_missions) for i in range(len(simulated_missions))]) if simulated_missions else []
+    for i, sim_mission in enumerate(simulated_missions):
+        _plot_path(ax, sim_mission.waypoints, sim_colors_anim[i], f"Sim ({sim_mission.drone_id}) Path", linestyle=':', marker='', is_3d=True)
+
+    # Initialize drone markers (scatter plot points) for animation
+    drone_markers = []
+    # Primary drone marker
+    initial_pos_primary = _interpolate_position_3d(primary_mission.waypoints, min_time)
+    if initial_pos_primary:
+        p_marker = ax.scatter([initial_pos_primary[0]], [initial_pos_primary[1]], [initial_pos_primary[2]], color=PRIMARY_COLOR, s=100, label=f"Primary ({primary_mission.drone_id})", depthshade=True)
+        drone_markers.append((p_marker, primary_mission.waypoints))
+    
+    # Simulated drone markers
+    for i, sim_mission in enumerate(simulated_missions):
+        initial_pos_sim = _interpolate_position_3d(sim_mission.waypoints, min_time)
+        if initial_pos_sim:
+            s_marker = ax.scatter([initial_pos_sim[0]], [initial_pos_sim[1]], [initial_pos_sim[2]], color=sim_colors_anim[i], s=70, label=f"Sim ({sim_mission.drone_id})", depthshade=True, marker='^')
+            drone_markers.append((s_marker, sim_mission.waypoints))
+
+    # Time display text
+    time_text = ax.text2D(0.05, 0.95, '', transform=ax.transAxes, fontsize=12)
+
+    # Set plot limits to encompass all paths
+    all_x = [wp.x for wp in all_waypoints]
+    all_y = [wp.y for wp in all_waypoints]
+    all_z = [wp.z for wp in all_waypoints]
+    if all_x and all_y and all_z:
+        ax.set_xlim(min(all_x) - 10, max(all_x) + 10)
+        ax.set_ylim(min(all_y) - 10, max(all_y) + 10)
+        ax.set_zlim(min(all_z) - 5, max(all_z) + 5)
+    
+    ax.legend(loc='upper left', bbox_to_anchor=(1.05, 1), borderaxespad=0.)
+    fig.tight_layout(rect=[0, 0, 0.85, 1]) # Adjust for legend
+
+    def update(frame_num):
+        current_time = min_time + frame_num * time_step
+        time_text.set_text(f'Time: {int(current_time // 60):02d}:{int(current_time % 60):02d} (Min: {current_time:.1f})')
+        
+        new_positions = []
+        for marker, waypoints in drone_markers:
+            pos = _interpolate_position_3d(waypoints, current_time)
+            if pos:
+                # For scatter, we need to update _offsets3d, which expects a list of (x,y,z) tuples
+                marker._offsets3d = ([pos[0]], [pos[1]], [pos[2]])
+                new_positions.append(pos)
+            # else: drone is outside its mission time or no valid position, marker remains
+        return [m[0] for m in drone_markers] + [time_text]
+
+    # Create animation
+    # interval is delay between frames in ms. (e.g. 200 frames, 50ms interval = 10s animation)
+    ani = FuncAnimation(fig, update, frames=num_frames + 1, interval=50, blit=False, repeat=True)
+    # blit=False is often more robust for 3D, especially with legends/text.
+    
+    Held_animations.append(ani) # Store to prevent garbage collection
     plt.show(block=False)
+    return ani # Though it's stored globally, returning can be good practice
 
 # Example usage (can be run standalone if needed with dummy data)
 if __name__ == '__main__':
