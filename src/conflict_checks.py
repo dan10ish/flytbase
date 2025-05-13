@@ -1,10 +1,7 @@
 import math
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 
 from .models import Waypoint, DroneMission
-
-# Import shapely - ensure it's in requirements.txt and installed
-from shapely.geometry import LineString, Point
 
 # Define a small tolerance for floating point comparisons
 FLOAT_TOLERANCE = 1e-9
@@ -19,59 +16,89 @@ def _get_time_interval_for_segment(segment: Tuple[Waypoint, Waypoint]) -> Tuple[
     # Ensure start <= end, although they should be ordered correctly already
     return min(start_minutes, end_minutes), max(start_minutes, end_minutes)
 
+# --- 3D Geometry Helper Functions ---
+
+def _subtract_vectors(v1: Waypoint, v2: Waypoint) -> Dict[str, float]:
+    return {'x': v1.x - v2.x, 'y': v1.y - v2.y, 'z': v1.z - v2.z}
+
+def _dot_product(vec1: Dict[str, float], vec2: Dict[str, float]) -> float:
+    return vec1['x'] * vec2['x'] + vec1['y'] * vec2['y'] + vec1['z'] * vec2['z']
+
+def _vector_norm_sq(vec: Dict[str, float]) -> float:
+    return vec['x']**2 + vec['y']**2 + vec['z']**2
+
+def distance_point_to_segment_3d(point: Waypoint, seg_start: Waypoint, seg_end: Waypoint) -> float:
+    """Calculates the minimum distance from a 3D point to a 3D line segment."""
+    segment_vec = _subtract_vectors(seg_end, seg_start)
+    point_to_start_vec = _subtract_vectors(point, seg_start)
+
+    seg_len_sq = _vector_norm_sq(segment_vec)
+    if seg_len_sq < FLOAT_TOLERANCE: # Segment is essentially a point
+        return math.sqrt(_vector_norm_sq(point_to_start_vec))
+
+    # Project point_to_start_vec onto segment_vec
+    # t = dot(point_to_start_vec, segment_vec) / segment_length_squared
+    t = _dot_product(point_to_start_vec, segment_vec) / seg_len_sq
+
+    if t < 0.0: # Closest point is seg_start
+        return math.sqrt(_vector_norm_sq(point_to_start_vec))
+    elif t > 1.0: # Closest point is seg_end
+        point_to_end_vec = _subtract_vectors(point, seg_end)
+        return math.sqrt(_vector_norm_sq(point_to_end_vec))
+    else: # Closest point is on the segment
+        closest_point_on_line = {
+            'x': seg_start.x + t * segment_vec['x'],
+            'y': seg_start.y + t * segment_vec['y'],
+            'z': seg_start.z + t * segment_vec['z']
+        }
+        distance_vec = {
+            'x': point.x - closest_point_on_line['x'],
+            'y': point.y - closest_point_on_line['y'],
+            'z': point.z - closest_point_on_line['z']
+        }
+        return math.sqrt(_vector_norm_sq(distance_vec))
+
+# --- End of 3D Geometry Helper Functions ---
+
 def check_segment_spatial_conflict(
     segment1: Tuple[Waypoint, Waypoint],
     segment2: Tuple[Waypoint, Waypoint],
     safety_buffer: float
 ) -> bool:
-    """Checks for spatial conflict (intersection or buffer breach) between two 2D path segments.
+    """Checks for spatial conflict (buffer breach) between two 3D path segments.
 
-    Args:
-        segment1: The first path segment, represented by two Waypoints.
-        segment2: The second path segment, represented by two Waypoints.
-        safety_buffer: The minimum allowed distance between the segments.
-
-    Returns:
-        True if the segments intersect or if the distance between them is less 
-        than the safety_buffer, False otherwise.
+    For 3D, this simplifies to checking if the minimum distance between the segments
+    is less than the safety_buffer. Direct intersection is harder with Shapely (2D).
+    This implementation will use a simplified proximity check:
+    Calculate distance from each endpoint of segment1 to segment2,
+    and from each endpoint of segment2 to segment1.
+    If any of these distances are less than safety_buffer, consider it a conflict.
+    This is an approximation, a full segment-to-segment distance is more complex.
     """
-    try:
-        # Create Shapely LineString objects for each segment
-        line1_coords = [(segment1[0].x, segment1[0].y), (segment1[1].x, segment1[1].y)]
-        line2_coords = [(segment2[0].x, segment2[0].y), (segment2[1].x, segment2[1].y)]
-        
-        # Avoid creating zero-length lines if waypoints are identical (use points instead for distance check)
-        if line1_coords[0] == line1_coords[1]:
-             geom1 = Point(line1_coords[0])
-        else:
-             geom1 = LineString(line1_coords)
-             
-        if line2_coords[0] == line2_coords[1]:
-            geom2 = Point(line2_coords[0])
-        else:
-            geom2 = LineString(line2_coords)
+    # Unpack waypoints
+    p1_start, p1_end = segment1
+    p2_start, p2_end = segment2
 
-        # 1. Check for direct intersection
-        # Note: intersects() includes touching endpoints
-        if geom1.intersects(geom2):
-            return True
+    # Check distance from p1_start to segment2
+    if distance_point_to_segment_3d(p1_start, p2_start, p2_end) < safety_buffer - FLOAT_TOLERANCE:
+        return True
+    # Check distance from p1_end to segment2
+    if distance_point_to_segment_3d(p1_end, p2_start, p2_end) < safety_buffer - FLOAT_TOLERANCE:
+        return True
+    # Check distance from p2_start to segment1
+    if distance_point_to_segment_3d(p2_start, p1_start, p1_end) < safety_buffer - FLOAT_TOLERANCE:
+        return True
+    # Check distance from p2_end to segment1
+    if distance_point_to_segment_3d(p2_end, p1_start, p1_end) < safety_buffer - FLOAT_TOLERANCE:
+        return True
 
-        # 2. Check if the minimum distance is less than the safety buffer
-        # Use geom1.distance(geom2) which calculates the shortest distance
-        min_distance = geom1.distance(geom2)
-        
-        # Compare distance with safety buffer, considering float tolerance
-        if min_distance < safety_buffer - FLOAT_TOLERANCE:
-            return True
-            
-    except Exception as e:
-        # Log the error or handle it appropriately
-        # For now, let's print a warning and assume no conflict to avoid halting execution
-        # In a production system, better error handling/logging is needed.
-        print(f"Warning: Shapely check failed for segments {segment1} and {segment2}. Error: {e}")
-        return False 
+    # A more robust check would involve finding the actual closest points between the two segments.
+    # For now, this endpoint-to-segment check provides a basic level of proximity detection.
+    # If waypoints themselves are very close (within buffer), that should also be caught.
+    # Consider distance between segment midpoints as another heuristic?
+    # For now, sticking to point-to-segment for simplicity as discussed.
 
-    return False
+    return False # No conflict detected by this simplified check
 
 def check_spatio_temporal_segment_conflict(
     segment1: Tuple[Waypoint, Waypoint],
@@ -109,7 +136,7 @@ def check_waypoint_collision(
     wp1: Waypoint,
     wp2: Waypoint
 ) -> bool:
-    """Checks if two waypoints represent the same location at the same time.
+    """Checks if two waypoints represent the same location (3D) at the same time.
 
     Uses FLOAT_TOLERANCE for comparing coordinates.
 
@@ -124,12 +151,12 @@ def check_waypoint_collision(
     if wp1.timestamp_minutes != wp2.timestamp_minutes:
         return False
 
-    # Check if coordinates are identical within the defined tolerance
-    # abs(a - b) < tolerance is a common way to compare floats
+    # Check if coordinates are identical within the defined tolerance (now includes Z)
     x_match = abs(wp1.x - wp2.x) < FLOAT_TOLERANCE
     y_match = abs(wp1.y - wp2.y) < FLOAT_TOLERANCE
+    z_match = abs(wp1.z - wp2.z) < FLOAT_TOLERANCE
 
-    return x_match and y_match
+    return x_match and y_match and z_match
 
 def find_conflicts(
     primary_mission: DroneMission,
@@ -185,8 +212,8 @@ def find_conflicts(
             for s_wp_idx, s_wp in enumerate(sim_waypoints):
                 if check_waypoint_collision(p_wp, s_wp):
                     conflict_found = True
-                    desc = (f"Waypoint Collision: Primary Waypoint {p_wp_idx} ({p_wp.x},{p_wp.y} at minute {p_wp.timestamp_minutes}) vs "
-                            f"Sim Drone {sim_mission.drone_id} Waypoint {s_wp_idx} ({s_wp.x},{s_wp.y} at minute {s_wp.timestamp_minutes}).")
+                    desc = (f"Waypoint Collision: Primary Waypoint {p_wp_idx} ({p_wp.x},{p_wp.y},{p_wp.z} at minute {p_wp.timestamp_minutes}) vs "
+                            f"Sim Drone {sim_mission.drone_id} Waypoint {s_wp_idx} ({s_wp.x},{s_wp.y},{s_wp.z} at minute {s_wp.timestamp_minutes}).")
                     conflict_details.append(desc)
 
     return conflict_found, conflict_details

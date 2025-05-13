@@ -8,6 +8,7 @@ class Waypoint:
     """Represents a single point in space and time (minutes since midnight) for a drone."""
     x: float
     y: float
+    z: float # Added for 3D coordinates
     timestamp_minutes: int # Time represented as minutes since midnight (0-1439)
 
 

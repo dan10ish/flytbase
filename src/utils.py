@@ -21,14 +21,14 @@ def _parse_hhmm_to_minutes(hhmm: int) -> int:
 
 
 def _calculate_distance(p1: Dict[str, float], p2: Dict[str, float]) -> float:
-    """Calculates Euclidean distance between two points {x, y}."""
+    """Calculates Euclidean distance between two points {x, y, z}."""
     # Ensure coordinates are floats before calculation
     try:
-        x1, y1 = float(p1['x']), float(p1['y'])
-        x2, y2 = float(p2['x']), float(p2['y'])
+        x1, y1, z1 = float(p1['x']), float(p1['y']), float(p1.get('z', 0.0)) # Default z to 0.0 if not present
+        x2, y2, z2 = float(p2['x']), float(p2['y']), float(p2.get('z', 0.0)) # Default z to 0.0 if not present
     except (KeyError, TypeError, ValueError) as e:
         raise ValueError(f"Invalid coordinate format for distance calculation. Points: {p1}, {p2}. Error: {e}") from e
-    return math.sqrt((x2 - x1)**2 + (y2 - y1)**2)
+    return math.sqrt((x2 - x1)**2 + (y2 - y1)**2 + (z2 - z1)**2)
 
 def load_missions_from_json(filepath: str) -> Tuple[DroneMission, List[DroneMission]]:
     """
@@ -74,15 +74,18 @@ def load_missions_from_json(filepath: str) -> Tuple[DroneMission, List[DroneMiss
 
         sim_waypoints: List[Waypoint] = []
         for wp_data in sim_data["waypoints"]:
-            if not all(k in wp_data for k in ["x", "y", "timestamp"]):
-                raise KeyError(f"Simulated waypoint for drone {sim_data['drone_id']} missing 'x', 'y', or 'timestamp' (expected HHMM int).")
+            # Expect x, y, z, and timestamp for simulated waypoints
+            if not all(k in wp_data for k in ["x", "y", "z", "timestamp"]):
+                # For backward compatibility, we can make z optional and default to 0, or raise error.
+                # For Phase 5, let's assume Z is expected.
+                raise KeyError(f"Simulated waypoint for drone {sim_data['drone_id']} missing 'x', 'y', 'z', or 'timestamp' (expected HHMM int).")
             try:
                 # Parse HHMM timestamp to minutes since midnight
                 timestamp_minutes = _parse_hhmm_to_minutes(int(wp_data["timestamp"]))
-                waypoint = Waypoint(x=float(wp_data["x"]), y=float(wp_data["y"]), timestamp_minutes=timestamp_minutes)
+                waypoint = Waypoint(x=float(wp_data["x"]), y=float(wp_data["y"]), z=float(wp_data["z"]), timestamp_minutes=timestamp_minutes)
                 sim_waypoints.append(waypoint)
             except (ValueError, TypeError, KeyError) as e:
-                 raise ValueError(f"Invalid data in waypoint for simulated drone {sim_data['drone_id']}. Check format and HHMM time. Details: {e}") from e
+                 raise ValueError(f"Invalid data in waypoint for simulated drone {sim_data['drone_id']}. Check format (x,y,z, HHMM time). Details: {e}") from e
 
         # Sort waypoints by timestamp for consistency
         sim_waypoints.sort(key=lambda wp: wp.timestamp_minutes)
@@ -99,16 +102,17 @@ def load_missions_from_json(filepath: str) -> Tuple[DroneMission, List[DroneMiss
          raise ValueError("Primary mission must have at least one waypoint.")
 
     primary_drone_id = primary_data["drone_id"]
-    # Ensure waypoints only contain x, y as expected for primary mission input
+    # Ensure waypoints only contain x, y, z as expected for primary mission input
     raw_waypoints = [] 
     for i, wp in enumerate(primary_data["waypoints"]):
-        if not isinstance(wp, dict) or 'x' not in wp or 'y' not in wp:
-            raise ValueError(f"Primary mission waypoint {i} for drone {primary_drone_id} must be a dict with 'x' and 'y'.")
+        # For Phase 5, let's assume Z is expected.
+        if not isinstance(wp, dict) or 'x' not in wp or 'y' not in wp or 'z' not in wp:
+            raise ValueError(f"Primary mission waypoint {i} for drone {primary_drone_id} must be a dict with 'x', 'y', and 'z'.")
         if 'timestamp' in wp:
-            raise ValueError(f"Primary mission waypoint {i} for drone {primary_drone_id} should only contain 'x' and 'y', not 'timestamp'.")
+            raise ValueError(f"Primary mission waypoint {i} for drone {primary_drone_id} should only contain 'x', 'y', 'z', not 'timestamp'.")
         try:
             # Validate coordinate types early
-            raw_waypoints.append({"x": float(wp['x']), "y": float(wp['y'])})
+            raw_waypoints.append({"x": float(wp['x']), "y": float(wp['y']), "z": float(wp['z'])})
         except (TypeError, ValueError) as e:
              raise ValueError(f"Invalid coordinate type in primary mission waypoint {i} for drone {primary_drone_id}. Details: {e}") from e
     
@@ -133,7 +137,7 @@ def load_missions_from_json(filepath: str) -> Tuple[DroneMission, List[DroneMiss
     if len(raw_waypoints) == 1:
         # If only one waypoint, it occurs at the start time
         wp_data = raw_waypoints[0]
-        calculated_waypoints.append(Waypoint(x=wp_data['x'], y=wp_data['y'], timestamp_minutes=start_time_minutes))
+        calculated_waypoints.append(Waypoint(x=wp_data['x'], y=wp_data['y'], z=wp_data['z'], timestamp_minutes=start_time_minutes))
     else:
         # Calculate total distance
         total_distance = 0
@@ -146,14 +150,14 @@ def load_missions_from_json(filepath: str) -> Tuple[DroneMission, List[DroneMiss
             # All waypoints are the same. Assign start time to all.
             current_time_minutes = start_time_minutes
             for wp_data in raw_waypoints:
-                 calculated_waypoints.append(Waypoint(x=wp_data['x'], y=wp_data['y'], timestamp_minutes=current_time_minutes))
+                 calculated_waypoints.append(Waypoint(x=wp_data['x'], y=wp_data['y'], z=wp_data['z'], timestamp_minutes=current_time_minutes))
         else:
             # Calculate constant speed in distance units per minute
             speed = total_distance / total_duration_minutes 
 
             current_time_minutes = start_time_minutes
             # First waypoint is at start_time_minutes
-            calculated_waypoints.append(Waypoint(x=raw_waypoints[0]['x'], y=raw_waypoints[0]['y'], timestamp_minutes=current_time_minutes))
+            calculated_waypoints.append(Waypoint(x=raw_waypoints[0]['x'], y=raw_waypoints[0]['y'], z=raw_waypoints[0]['z'], timestamp_minutes=current_time_minutes))
 
             # Calculate time for subsequent waypoints
             for i in range(len(raw_waypoints) - 1):
@@ -177,7 +181,7 @@ def load_missions_from_json(filepath: str) -> Tuple[DroneMission, List[DroneMiss
                 # Ensure we don't exceed end_time_minutes due to float inaccuracies. Clamp and round.
                 final_timestamp_minutes = min(round(current_time_minutes), end_time_minutes) 
                 
-                calculated_waypoints.append(Waypoint(x=raw_waypoints[i+1]['x'], y=raw_waypoints[i+1]['y'], timestamp_minutes=final_timestamp_minutes))
+                calculated_waypoints.append(Waypoint(x=raw_waypoints[i+1]['x'], y=raw_waypoints[i+1]['y'], z=raw_waypoints[i+1]['z'], timestamp_minutes=final_timestamp_minutes))
 
             # Final check/adjustment: ensure last waypoint has exactly end_time_minutes if calculated time is very close
             if calculated_waypoints and abs(calculated_waypoints[-1].timestamp_minutes - end_time_minutes) <= 1: # Tolerance of 1 min

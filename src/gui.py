@@ -16,29 +16,39 @@ from .deconfliction_system import check_mission_conflicts
 sg.theme('LightBlue2')  # A clean, professional-looking theme
 
 def convert_waypoints_to_text(waypoints: List[Dict[str, float]]) -> str:
-    """Convert a list of waypoint dictionaries to a string format."""
+    """Convert a list of waypoint dictionaries to a string format (x,y,z)."""
     waypoint_strs = []
     for wp in waypoints:
-        waypoint_strs.append(f"{wp['x']},{wp['y']}")
+        # Assuming z might be optional in the dict, default to 0 if not present for display
+        waypoint_strs.append(f"{wp['x']},{wp['y']},{wp.get('z', 0.0)}")
     return ";".join(waypoint_strs)
 
 def parse_waypoints_text(waypoints_text: str) -> List[Dict[str, float]]:
-    """Parse waypoints from string format to a list of dictionaries."""
+    """Parse waypoints from string format (x,y,z or x,y) to a list of dictionaries."""
     waypoints = []
     try:
-        # Split by semicolons to get individual waypoints
         wp_strings = waypoints_text.strip().split(';')
         for wp_str in wp_strings:
             if wp_str:  # Skip empty strings
-                # Split by comma to get x,y coordinates
                 coords = wp_str.strip().split(',')
-                if len(coords) >= 2:
+                if len(coords) == 3: # x,y,z format
                     waypoints.append({
                         'x': float(coords[0].strip()),
-                        'y': float(coords[1].strip())
+                        'y': float(coords[1].strip()),
+                        'z': float(coords[2].strip())
                     })
+                elif len(coords) == 2: # x,y format (backward compatibility, z defaults to 0)
+                    sg.popup_warn("Waypoint format x,y detected. Altitude (z) will default to 0. Please use x,y,z for 3D.", auto_close=True, auto_close_duration=5)
+                    waypoints.append({
+                        'x': float(coords[0].strip()),
+                        'y': float(coords[1].strip()),
+                        'z': 0.0 # Default z to 0
+                    })
+                else:
+                    sg.popup_error(f"Invalid waypoint format: '{wp_str}'. Use x,y,z or x,y.")
+                    return [] # Error, stop parsing
     except ValueError as e:
-        sg.popup_error(f"Error parsing waypoints: {e}\nUse format: x1,y1;x2,y2;...")
+        sg.popup_error(f"Error parsing waypoints: {e}\nUse format: x1,y1,z1;x2,y2,z2;... (or x,y for z=0)")
         return []
     
     return waypoints
@@ -154,8 +164,8 @@ def main_window():
         # Input Section - Primary Drone Mission
         [sg.Frame('Primary Drone Mission', [
             [sg.Text('Drone ID:'), sg.Input('primary_01', key='-PRIMARY_ID-', size=(15, 1))],
-            [sg.Text('Waypoints (x1,y1;x2,y2;...):')],
-            [sg.Multiline('0,0;100,0;100,100', key='-PRIMARY_WAYPOINTS-', size=(40, 3))],
+            [sg.Text('Waypoints (x1,y1,z1;x2,y2,z2;...):')],
+            [sg.Multiline('0,0,10;100,0,10;100,100,15;0,100,15', key='-PRIMARY_WAYPOINTS-', size=(40, 3))],
             [sg.Text('Start Time (HHMM):'), sg.Input('800', key='-START_TIME-', size=(6, 1)), 
              sg.Text('End Time (HHMM):'), sg.Input('810', key='-END_TIME-', size=(6, 1))],
         ])],
@@ -163,8 +173,8 @@ def main_window():
         # Input Section - Simulated Drone Mission
         [sg.Frame('Simulated Drone Mission', [
             [sg.Text('Drone ID:'), sg.Input('sim_01', key='-SIM_ID-', size=(15, 1))],
-            [sg.Text('Waypoints (x1,y1;x2,y2;...):')],
-            [sg.Multiline('50,-10;50,10', key='-SIM_WAYPOINTS-', size=(40, 3))],
+            [sg.Text('Waypoints (x1,y1,z1;x2,y2,z2;...):')],
+            [sg.Multiline('50,-10,5;50,10,5', key='-SIM_WAYPOINTS-', size=(40, 3))],
             [sg.Text('Timestamps (HHMM;HHMM;... one per waypoint):')],
             [sg.Multiline('803;806', key='-SIM_TIMESTAMPS-', size=(40, 2))],
         ])],

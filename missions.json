@@ -2,10 +2,10 @@
   "primary_mission": {
     "drone_id": "Alpha",
     "waypoints": [
-      {"x": 0, "y": 0},
-      {"x": 100, "y": 0},
-      {"x": 100, "y": 100},
-      {"x": 0, "y": 100}
+      {"x": 0, "y": 0, "z": 10},
+      {"x": 100, "y": 0, "z": 10},
+      {"x": 100, "y": 100, "z": 15},
+      {"x": 0, "y": 100, "z": 15}
     ],
     "start_time": 800,
     "end_time": 820
@@ -14,45 +14,45 @@
     {
       "drone_id": "Bravo",
       "waypoints": [
-        {"x": 0, "y": 50, "timestamp": 805},
-        {"x": 100, "y": 50, "timestamp": 815}
+        {"x": 0, "y": 50, "z": 5, "timestamp": 805},
+        {"x": 100, "y": 50, "z": 5, "timestamp": 815}
       ]
     },
     {
       "drone_id": "Charlie",
-      "comment": "Primary reaches (100,0) at 0805 if speed is constant over 200 units in 10 mins for first half",
+      "comment": "Primary reaches (100,0,10) at 0805. This drone is at same x,y but different z",
       "waypoints": [
-        {"x": 100, "y": 0, "timestamp": 805}
+        {"x": 100, "y": 0, "z": 20, "timestamp": 805}
       ]
     },
     {
       "drone_id": "Delta",
       "waypoints": [
-        {"x": 0, "y": 3, "timestamp": 800},
-        {"x": 100, "y": 3, "timestamp": 810}
+        {"x": 0, "y": 3, "z": 10, "timestamp": 800},
+        {"x": 100, "y": 3, "z": 10, "timestamp": 810}
       ],
-      "comment": "Runs parallel and close to primary's first leg. Assumes timestamp for first sim waypoint is 0800 if not given, but explicitly given here for clarity for this type of mission that starts with primary"
+      "comment": "Runs parallel and close to primary's first leg, at same altitude."
     },
     {
       "drone_id": "Echo",
       "waypoints": [
-        {"x": 50, "y": -20, "timestamp": 900},
-        {"x": 50, "y": 120, "timestamp": 910}
+        {"x": 50, "y": -20, "z": 25, "timestamp": 900},
+        {"x": 50, "y": 120, "z": 25, "timestamp": 910}
       ]
     },
     {
       "drone_id": "Foxtrot",
       "waypoints": [
-        {"x": -50, "y": 50, "timestamp": 800},
-        {"x": -60, "y": 50, "timestamp": 810}
+        {"x": -50, "y": 50, "z": 10, "timestamp": 800},
+        {"x": -60, "y": 50, "z": 12, "timestamp": 810}
       ]
     },
     {
       "drone_id": "Golf",
-      "comment": "Stationary drone, could clash if primary path goes through it.",
+      "comment": "Stationary drone, could clash if primary path goes through it at same altitude.",
       "waypoints": [
-        {"x": 50, "y": 50, "timestamp": 800},
-        {"x": 50, "y": 50, "timestamp": 820}
+        {"x": 50, "y": 50, "z": 10, "timestamp": 800},
+        {"x": 50, "y": 50, "z": 10, "timestamp": 820}
       ]
     }
   ]
