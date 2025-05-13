@@ -1,19 +1,19 @@
 {
   "primary_mission": {
-    "drone_id": "P_Conflict",
+    "drone_id": "P_Conflict_3D",
     "waypoints": [
-      {"x": 0, "y": 0},
-      {"x": 100, "y": 100}
+      {"x": 0, "y": 0, "z": 10},
+      {"x": 100, "y": 100, "z": 15}
     ],
     "start_time": 900, 
     "end_time": 910    
   },
   "simulated_missions": [
     {
-      "drone_id": "S_Crosses",
+      "drone_id": "S_Crosses_3D",
       "waypoints": [
-        {"x": 0, "y": 100, "timestamp": 904}, 
-        {"x": 100, "y": 0, "timestamp": 908} 
+        {"x": 0, "y": 100, "z": 12, "timestamp": 904}, 
+        {"x": 100, "y": 0, "z": 12, "timestamp": 908} 
       ]
     }
   ]

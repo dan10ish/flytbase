@@ -1,6 +1,6 @@
 {
   "primary_mission": {
-    "drone_id": "Alpha",
+    "drone_id": "Flytbase",
     "waypoints": [
       {"x": 0, "y": 0, "z": 10},
       {"x": 100, "y": 0, "z": 10},
@@ -12,26 +12,32 @@
   },
   "simulated_missions": [
     {
-      "drone_id": "Bravo",
+      "drone_id": "Alpha",
       "waypoints": [
         {"x": 0, "y": 50, "z": 5, "timestamp": 805},
         {"x": 100, "y": 50, "z": 5, "timestamp": 815}
       ]
     },
     {
-      "drone_id": "Charlie",
-      "comment": "Primary reaches (100,0,10) at 0805. This drone is at same x,y but different z",
+      "drone_id": "Beta",
+      "comment": "Primary reaches (100,0,10) at T=calculated. This drone is at same x,y but different z at a specific time",
       "waypoints": [
         {"x": 100, "y": 0, "z": 20, "timestamp": 805}
       ]
     },
     {
-      "drone_id": "Delta",
+      "drone_id": "Charlie",
       "waypoints": [
         {"x": 0, "y": 3, "z": 10, "timestamp": 800},
         {"x": 100, "y": 3, "z": 10, "timestamp": 810}
-      ],
-      "comment": "Runs parallel and close to primary's first leg, at same altitude."
+      ]
+    },
+    {
+      "drone_id": "Delta",
+      "comment": "Waypoint collision test: Primary is at (0,0,10) at T=800 (start time)",
+      "waypoints": [
+        {"x": 0, "y": 0, "z": 10, "timestamp": 800}
+      ]
     },
     {
       "drone_id": "Echo",

@@ -1,19 +1,19 @@
 {
   "primary_mission": {
-    "drone_id": "P_Buffer",
+    "drone_id": "P_Buffer_3D",
     "waypoints": [
-      {"x": 0, "y": 0},
-      {"x": 100, "y": 0}
+      {"x": 0, "y": 0, "z": 10},
+      {"x": 100, "y": 0, "z": 10}
     ],
     "start_time": 1200, 
     "end_time": 1210   
   },
   "simulated_missions": [
     {
-      "drone_id": "S_CloseCall",
+      "drone_id": "S_CloseCall_3D",
       "waypoints": [
-        {"x": 50, "y": 2, "timestamp": 1204}, 
-        {"x": 50, "y": 20, "timestamp": 1208} 
+        {"x": 50, "y": 2, "z": 10, "timestamp": 1204}, 
+        {"x": 50, "y": 20, "z": 12, "timestamp": 1208} 
       ]
     }
   ]
