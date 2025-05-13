@@ -3,7 +3,7 @@ from datetime import datetime # Keep for potential future use, but not for times
 from typing import List, Tuple
 
 
-@dataclass
+@dataclass # to auto generate dunder methods
 class Waypoint:
     """Represents a single point in space and time (minutes since midnight) for a drone."""
     x: float
