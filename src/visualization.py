@@ -85,6 +85,7 @@ def plot_missions(
         safety_buffer: The safety buffer distance (used for context, plotting actual buffer might be complex).
         conflict_details: A list of strings describing conflicts, if any.
     """
+    # Create a new figure in a new window
     fig, ax = plt.subplots(figsize=(10, 8))
     ax.set_aspect('equal', adjustable='box') # Ensure correct aspect ratio for distances
     ax.set_xlabel("X Coordinate")
@@ -160,7 +161,7 @@ def plot_missions(
     if by_label: # Only show legend if there are labels
       ax.legend(by_label.values(), by_label.keys(), loc='best')
 
-    plt.show() # Display the plot interactively
+    plt.show(block=False) # Display the plot interactively in a new window
 
 # Example usage (can be run standalone if needed with dummy data)
 if __name__ == '__main__':
