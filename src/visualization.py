@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 from typing import List, Optional, Tuple
 import re # For parsing conflict details
+import math # Added for ceil
 
 # Assuming models.py is accessible
 from .models import DroneMission, Waypoint
@@ -77,91 +78,217 @@ def plot_missions(
     safety_buffer: float,
     conflict_details: Optional[List[str]] = None
 ):
-    """Generates a 2D plot visualizing drone missions and detected conflicts.
+    """Generates 2D plots: one overview and one for each primary-simulated pair.
 
     Args:
         primary_mission: The primary DroneMission object.
         simulated_missions: A list of simulated DroneMission objects.
-        safety_buffer: The safety buffer distance (used for context, plotting actual buffer might be complex).
+        safety_buffer: The safety buffer distance.
         conflict_details: A list of strings describing conflicts, if any.
     """
-    # Create a new figure in a new window
-    fig, ax = plt.subplots(figsize=(10, 8))
-    ax.set_aspect('equal', adjustable='box') # Ensure correct aspect ratio for distances
-    ax.set_xlabel("X Coordinate")
-    ax.set_ylabel("Y Coordinate")
-    ax.set_title(f"Drone Mission Paths (Safety Buffer: {safety_buffer} units)")
-    ax.grid(True, linestyle='--', alpha=0.6)
+    # --- Main Overview Plot ---
+    fig_overview, ax_overview = plt.subplots(figsize=(12, 8)) # Adjusted figsize for legend
+    ax_overview.set_aspect('equal', adjustable='box')
+    ax_overview.set_xlabel("X Coordinate")
+    ax_overview.set_ylabel("Y Coordinate")
+    ax_overview.set_title(f"Overall Drone Mission Paths (Safety Buffer: {safety_buffer} units)")
+    ax_overview.grid(True, linestyle='--', alpha=0.6)
 
-    # Plot primary mission
-    _plot_path(ax, primary_mission.waypoints, PRIMARY_COLOR, f"Primary ({primary_mission.drone_id})", marker='s', markersize=6)
+    _plot_path(ax_overview, primary_mission.waypoints, PRIMARY_COLOR, f"Primary ({primary_mission.drone_id})", marker='s', markersize=6)
 
-    # Plot simulated missions
-    sim_colors = plt.cm.viridis_r([i/len(simulated_missions) for i in range(len(simulated_missions))]) if simulated_missions else []
-    sim_missions_dict = {sim.drone_id: sim for sim in simulated_missions} # For quick lookup
-    
+    sim_colors_overview = plt.cm.viridis_r([i/len(simulated_missions) for i in range(len(simulated_missions))]) if simulated_missions else []
+    sim_missions_dict_overview = {sim.drone_id: sim for sim in simulated_missions}
+
     for i, sim_mission in enumerate(simulated_missions):
-        _plot_path(ax, sim_mission.waypoints, sim_colors[i], f"Sim ({sim_mission.drone_id})", linestyle=':', marker='^', markersize=4)
+        _plot_path(ax_overview, sim_mission.waypoints, sim_colors_overview[i], f"Sim ({sim_mission.drone_id})", linestyle=':', marker='^', markersize=4)
 
-    # Highlight conflicts if details are provided
     if conflict_details:
-        parsed_conflicts = _parse_conflict_details(conflict_details)
+        parsed_conflicts_overview = _parse_conflict_details(conflict_details)
+        primary_segments_overview = primary_mission.get_path_segments()
         
-        # Highlight conflicting primary segments/waypoints
-        primary_segments = primary_mission.get_path_segments()
-        plotted_primary_seg_label = False
-        for p_idx in parsed_conflicts["primary_segments"]:
-            if 0 <= p_idx < len(primary_segments):
-                 segment = primary_segments[p_idx]
-                 ax.plot([segment[0].x, segment[1].x], [segment[0].y, segment[1].y], 
-                         color=CONFLICT_COLOR, linewidth=3, linestyle='-', marker='', 
-                         label=f'Conflict Zone (Primary Seg {p_idx})' if not plotted_primary_seg_label else "") # Label only once
-                 plotted_primary_seg_label = True
+        # Highlight conflicting primary segments/waypoints on overview
+        # (This logic might need refinement if a primary segment conflicts with multiple sims, ensure it's only drawn once red)
+        plotted_primary_seg_labels_overview = set()
+        for p_idx in parsed_conflicts_overview["primary_segments"]:
+            if 0 <= p_idx < len(primary_segments_overview):
+                segment = primary_segments_overview[p_idx]
+                label_key = f"P_Seg_{p_idx}"
+                label_text = f'Conflict Zone (Primary Seg {p_idx})' if label_key not in plotted_primary_seg_labels_overview else ""
+                ax_overview.plot([segment[0].x, segment[1].x], [segment[0].y, segment[1].y],
+                                 color=CONFLICT_COLOR, linewidth=3, linestyle='-', marker='',
+                                 label=label_text)
+                if label_text: plotted_primary_seg_labels_overview.add(label_key)
 
-        plotted_primary_wp_label = False
-        for p_idx in parsed_conflicts["primary_waypoints"]:
-             if 0 <= p_idx < len(primary_mission.waypoints):
-                 wp = primary_mission.waypoints[p_idx]
-                 ax.plot(wp.x, wp.y, marker='X', color=CONFLICT_COLOR, markersize=12, linestyle='',
-                         label=f'Conflict Zone (Primary WP {p_idx})' if not plotted_primary_wp_label and not plotted_primary_seg_label else "") # Label only once if no seg conflict label shown
-                 plotted_primary_wp_label = True
-
-
-        # Highlight conflicting simulated segments/waypoints
-        plotted_sim_seg_labels = set()
-        for sim_id, s_idx in parsed_conflicts["sim_segments"]:
-            if sim_id in sim_missions_dict:
-                sim_mission = sim_missions_dict[sim_id]
+        plotted_primary_wp_labels_overview = set()
+        for p_idx in parsed_conflicts_overview["primary_waypoints"]:
+            if 0 <= p_idx < len(primary_mission.waypoints):
+                wp = primary_mission.waypoints[p_idx]
+                label_key = f"P_WP_{p_idx}"
+                label_text = f'Conflict Zone (Primary WP {p_idx})' if label_key not in plotted_primary_wp_labels_overview else ""
+                ax_overview.plot(wp.x, wp.y, marker='X', color=CONFLICT_COLOR, markersize=12, linestyle='',
+                                 label=label_text)
+                if label_text: plotted_primary_wp_labels_overview.add(label_key)
+        
+        # Highlight conflicting simulated segments/waypoints on overview
+        plotted_sim_seg_labels_overview = set()
+        for sim_id, s_idx in parsed_conflicts_overview["sim_segments"]:
+            if sim_id in sim_missions_dict_overview:
+                sim_mission = sim_missions_dict_overview[sim_id]
                 sim_segments = sim_mission.get_path_segments()
                 if 0 <= s_idx < len(sim_segments):
                     segment = sim_segments[s_idx]
                     label_key = f"Sim_{sim_id}_Seg_{s_idx}"
-                    label_text = f'Conflict Zone (Sim {sim_id} Seg {s_idx})' if label_key not in plotted_sim_seg_labels else ""
-                    ax.plot([segment[0].x, segment[1].x], [segment[0].y, segment[1].y], 
-                             color=CONFLICT_COLOR, linewidth=3, linestyle=':', marker='',
-                             label=label_text) 
-                    if label_text: plotted_sim_seg_labels.add(label_key)
-                             
-        plotted_sim_wp_labels = set()
-        for sim_id, s_idx in parsed_conflicts["sim_waypoints"]:
-            if sim_id in sim_missions_dict:
-                sim_mission = sim_missions_dict[sim_id]
+                    label_text = f'Conflict Zone (Sim {sim_id} Seg {s_idx})' if label_key not in plotted_sim_seg_labels_overview else ""
+                    # Find the original color for this sim drone to ensure consistency if not conflicting
+                    original_sim_color = SIMULATED_COLOR # Default
+                    for i_color, sm_color in enumerate(simulated_missions):
+                        # Ensure sim_colors_overview is not empty and index is valid
+                        if sm_color.drone_id == sim_id and len(sim_colors_overview) > 0 and i_color < len(sim_colors_overview):
+                            original_sim_color = sim_colors_overview[i_color]
+                            break
+                    ax_overview.plot([segment[0].x, segment[1].x], [segment[0].y, segment[1].y],
+                                     color=CONFLICT_COLOR, linewidth=3, linestyle=':', marker='',
+                                     label=label_text)
+                    if label_text: plotted_sim_seg_labels_overview.add(label_key)
+
+        plotted_sim_wp_labels_overview = set()
+        for sim_id, s_idx in parsed_conflicts_overview["sim_waypoints"]:
+            if sim_id in sim_missions_dict_overview:
+                sim_mission = sim_missions_dict_overview[sim_id]
                 if 0 <= s_idx < len(sim_mission.waypoints):
                     wp = sim_mission.waypoints[s_idx]
                     label_key = f"Sim_{sim_id}_WP_{s_idx}"
-                    label_text = f'Conflict Zone (Sim {sim_id} WP {s_idx})' if label_key not in plotted_sim_wp_labels else ""
-                    ax.plot(wp.x, wp.y, marker='X', color=CONFLICT_COLOR, markersize=10, linestyle='',
-                            label=label_text) 
-                    if label_text: plotted_sim_wp_labels.add(label_key)
+                    label_text = f'Conflict Zone (Sim {sim_id} WP {s_idx})' if label_key not in plotted_sim_wp_labels_overview else ""
+                    ax_overview.plot(wp.x, wp.y, marker='X', color=CONFLICT_COLOR, markersize=10, linestyle='',
+                                     label=label_text)
+                    if label_text: plotted_sim_wp_labels_overview.add(label_key)
+
+    handles_overview, labels_overview = ax_overview.get_legend_handles_labels()
+    by_label_overview = dict(zip(labels_overview, handles_overview))
+    if by_label_overview:
+        # Place legend outside to the top right, with smaller font
+        ax_overview.legend(by_label_overview.values(), by_label_overview.keys(), loc='upper left', bbox_to_anchor=(1.02, 1), borderaxespad=0., fontsize='small')
+    
+    # Adjust layout to make space for legend
+    fig_overview.tight_layout(rect=[0.04, 0.03, 0.85, 0.97]) # rect=[left, bottom, right, top]
 
 
-    # Improve legend handling - avoid duplicate labels
-    handles, labels = ax.get_legend_handles_labels()
-    by_label = dict(zip(labels, handles)) # Use dict to automatically remove duplicates
-    if by_label: # Only show legend if there are labels
-      ax.legend(by_label.values(), by_label.keys(), loc='best')
+    # --- Individual Plots for Each Simulated Mission vs Primary (in multiple grid figures if necessary) ---
+    num_sim_missions = len(simulated_missions)
+    if num_sim_missions > 0:
+        max_subplots_per_grid_fig = 4  # e.g., 2 rows, 2 columns
+        ncols_grid = 2  # Number of columns in each grid figure
+        
+        sim_mission_chunks = [simulated_missions[i:i + max_subplots_per_grid_fig] 
+                              for i in range(0, num_sim_missions, max_subplots_per_grid_fig)]
+        
+        sim_colors_overview = plt.cm.viridis_r([i/len(simulated_missions) for i in range(len(simulated_missions))]) if simulated_missions else []
 
-    plt.show(block=False) # Display the plot interactively in a new window
+
+        for chunk_idx, mission_chunk in enumerate(sim_mission_chunks):
+            current_chunk_size = len(mission_chunk)
+            if current_chunk_size == 0: continue # Should not happen with the chunking logic
+
+            nrows_grid_chunk = math.ceil(current_chunk_size / ncols_grid)
+            
+            # Increased figsize for a larger window and to accommodate external legends
+            fig_chunk, axes_chunk = plt.subplots(nrows_grid_chunk, ncols_grid, 
+                                                 figsize=(ncols_grid * 4.5, nrows_grid_chunk * 4.0), # Increased per-subplot effect
+                                                 squeeze=False)
+            flat_axes_chunk = axes_chunk.flatten()
+
+            chunk_start_idx = chunk_idx * max_subplots_per_grid_fig
+
+            for i_in_chunk, sim_mission in enumerate(mission_chunk):
+                ax_ind = flat_axes_chunk[i_in_chunk]
+                global_sim_idx = chunk_start_idx + i_in_chunk # Original index in simulated_missions
+
+                ax_ind.set_aspect('equal', adjustable='box')
+                ax_ind.set_xlabel("X", fontsize=7) 
+                ax_ind.set_ylabel("Y", fontsize=7) 
+                ax_ind.set_title(f"Pri vs Sim ({sim_mission.drone_id.split('_')[-1]}) B:{safety_buffer}", fontsize=8) 
+                ax_ind.grid(True, linestyle='--', alpha=0.6)
+                ax_ind.tick_params(axis='both', which='major', labelsize=6)
+
+                _plot_path(ax_ind, primary_mission.waypoints, PRIMARY_COLOR, f"Primary", marker='s', markersize=3)
+                
+                current_sim_color_ind = plt.cm.viridis_r(0.5) # Default
+                if len(sim_colors_overview) > 0 and global_sim_idx < len(sim_colors_overview):
+                    current_sim_color_ind = sim_colors_overview[global_sim_idx]
+
+                _plot_path(ax_ind, sim_mission.waypoints, current_sim_color_ind, f"Sim ({sim_mission.drone_id.split('_')[-1]})", linestyle=':', marker='^', markersize=3) # Shorter label for sim
+
+                individual_conflict_details_chunk = []
+                if conflict_details:
+                    for detail in conflict_details:
+                        if f"Sim Drone {sim_mission.drone_id}" in detail:
+                            individual_conflict_details_chunk.append(detail)
+                
+                if individual_conflict_details_chunk:
+                    parsed_conflicts_chunk = _parse_conflict_details(individual_conflict_details_chunk)
+                    primary_segments_chunk = primary_mission.get_path_segments()
+
+                    plotted_primary_seg_labels_chunk = set()
+                    for p_idx in parsed_conflicts_chunk["primary_segments"]:
+                        if 0 <= p_idx < len(primary_segments_chunk):
+                            segment = primary_segments_chunk[p_idx]
+                            label_key = f"P_Seg_{p_idx}_sim_{sim_mission.drone_id}_chk{chunk_idx}"
+                            label_text = f'Conflict (Pri Seg {p_idx})' if label_key not in plotted_primary_seg_labels_chunk else ""
+                            ax_ind.plot([segment[0].x, segment[1].x], [segment[0].y, segment[1].y],
+                                             color=CONFLICT_COLOR, linewidth=2, linestyle='-', marker='',
+                                             label=label_text)
+                            if label_text: plotted_primary_seg_labels_chunk.add(label_key)
+                    
+                    plotted_primary_wp_labels_chunk = set()
+                    for p_idx in parsed_conflicts_chunk["primary_waypoints"]:
+                        if 0 <= p_idx < len(primary_mission.waypoints):
+                            wp = primary_mission.waypoints[p_idx]
+                            label_key = f"P_WP_{p_idx}_sim_{sim_mission.drone_id}_chk{chunk_idx}"
+                            label_text = f'Conflict (Pri WP {p_idx})' if label_key not in plotted_primary_wp_labels_chunk else ""
+                            ax_ind.plot(wp.x, wp.y, marker='X', color=CONFLICT_COLOR, markersize=8, linestyle='',
+                                             label=label_text)
+                            if label_text: plotted_primary_wp_labels_chunk.add(label_key)
+
+                    plotted_sim_seg_labels_chunk = set()
+                    for s_sim_id, s_idx in parsed_conflicts_chunk["sim_segments"]:
+                        if s_sim_id == sim_mission.drone_id:
+                            sim_segments_chunk = sim_mission.get_path_segments()
+                            if 0 <= s_idx < len(sim_segments_chunk):
+                                segment = sim_segments_chunk[s_idx]
+                                label_key = f"Sim_{s_sim_id}_Seg_{s_idx}_chk{chunk_idx}"
+                                label_text = f'Conflict (Sim Seg {s_idx})' if label_key not in plotted_sim_seg_labels_chunk else ""
+                                ax_ind.plot([segment[0].x, segment[1].x], [segment[0].y, segment[1].y],
+                                                 color=CONFLICT_COLOR, linewidth=2, linestyle=':', marker='',
+                                                 label=label_text)
+                                if label_text: plotted_sim_seg_labels_chunk.add(label_key)
+                    
+                    plotted_sim_wp_labels_chunk = set()
+                    for s_sim_id, s_wp_idx in parsed_conflicts_chunk["sim_waypoints"]:
+                         if s_sim_id == sim_mission.drone_id:
+                            if 0 <= s_wp_idx < len(sim_mission.waypoints):
+                                wp = sim_mission.waypoints[s_wp_idx]
+                                label_key = f"Sim_{s_sim_id}_WP_{s_wp_idx}_chk{chunk_idx}"
+                                label_text = f'Conflict (Sim WP {s_wp_idx})' if label_key not in plotted_sim_wp_labels_chunk else ""
+                                ax_ind.plot(wp.x, wp.y, marker='X', color=CONFLICT_COLOR, markersize=7, linestyle='',
+                                                label=label_text)
+                                if label_text: plotted_sim_wp_labels_chunk.add(label_key)
+
+                handles_ind, labels_ind = ax_ind.get_legend_handles_labels()
+                by_label_ind = dict(zip(labels_ind, handles_ind))
+                if by_label_ind:
+                    # Move legend outside the plot area
+                    ax_ind.legend(by_label_ind.values(), by_label_ind.keys(), loc='upper left', bbox_to_anchor=(1.02, 1), borderaxespad=0., fontsize=6)
+            
+            # Hide any unused subplots in the current chunk figure
+            for j in range(current_chunk_size, nrows_grid_chunk * ncols_grid):
+                flat_axes_chunk[j].set_visible(False)
+
+            # Adjust layout with rect to make space for suptitle and external legends
+            # rect=[left, bottom, right, top]
+            fig_chunk.tight_layout(rect=[0.03, 0.03, 0.85, 0.93]) # Leave space on right for legends, top for suptitle
+            fig_chunk.suptitle(f"Individual Conflicts (Sim Drones {chunk_start_idx + 1}-{min(chunk_start_idx + max_subplots_per_grid_fig, num_sim_missions)})", fontsize=10, y=0.98) # Adjusted y and fontsize slightly
+
+    plt.show(block=False)
 
 # Example usage (can be run standalone if needed with dummy data)
 if __name__ == '__main__':
