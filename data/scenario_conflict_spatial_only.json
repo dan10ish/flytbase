@@ -12,10 +12,10 @@
     {
       "drone_id": "S_Crosses_Later_3D",
       "waypoints": [
-        {"x": 0, "y": 100, "z": 10}, 
+        {"x": 0, "y": 100, "z": 10, "timestamp": 1500}, 
         {"x": 100, "y": 0, "z": 10, "timestamp": 1505} 
       ],
-      "comment": "Original had sim start time 1500, end 1510. Explicit timestamp used here for clarity that waypoints define a path segment. For spatial_only, the key is that times 1400-1410 and 1500-1510 (or around 1505 for this segment) do not overlap even if paths cross."
+      "comment": "Original had sim start time 1500, end 1510. Explicit timestamp used here for clarity that waypoints define a path segment. For spatial_only, the key is that times 1400-1410 for primary and 1500-1505 for this sim segment do not overlap even if paths cross."
     }
   ]
 } 
