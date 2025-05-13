@@ -1,29 +1,58 @@
 {
   "primary_mission": {
-    "drone_id": "primary_01",
-    "waypoints": [{"x": 0, "y": 0}, {"x": 100, "y": 0}, {"x": 100, "y": 100}],
-    "start_time": 800,  
-    "end_time": 810     
+    "drone_id": "Primary_EastThenNorth_0800_0820",
+    "waypoints": [
+      {"x": 0, "y": 0},
+      {"x": 100, "y": 0},
+      {"x": 100, "y": 100},
+      {"x": 0, "y": 100}
+    ],
+    "start_time": 800,
+    "end_time": 820
   },
   "simulated_missions": [
     {
-      "drone_id": "sim_A_conflict",
+      "drone_id": "Sim_CrossPath_ST_Conflict_0805_0815",
       "waypoints": [
-        {"x": 50, "y": -10, "timestamp": 803}, 
-        {"x": 50, "y": 10, "timestamp": 806}  
+        {"x": 0, "y": 50, "timestamp": 805},
+        {"x": 100, "y": 50, "timestamp": 815}
       ]
     },
     {
-      "drone_id": "sim_B_clear",
+      "drone_id": "Sim_WaypointClash_ExactTime_0805",
+      "comment": "Primary reaches (100,0) at 0805 if speed is constant over 200 units in 10 mins for first half",
       "waypoints": [
-        {"x": 0, "y": 50, "timestamp": 900}, 
-        {"x": 10, "y": 50, "timestamp": 905}  
+        {"x": 100, "y": 0, "timestamp": 805}
       ]
     },
     {
-      "drone_id": "sim_C_waypoint_clash",
+      "drone_id": "Sim_BufferConflict_Parallel_0800_0810",
       "waypoints": [
-        {"x": 100, "y": 0, "timestamp": 805} 
+        {"x": 0, "y": 3, "timestamp": 800},
+        {"x": 100, "y": 3, "timestamp": 810}
+      ],
+      "comment": "Runs parallel and close to primary's first leg. Assumes timestamp for first sim waypoint is 0800 if not given, but explicitly given here for clarity for this type of mission that starts with primary"
+    },
+    {
+      "drone_id": "Sim_SpatialCross_NoTemporal_0900_0910",
+      "waypoints": [
+        {"x": 50, "y": -20, "timestamp": 900},
+        {"x": 50, "y": 120, "timestamp": 910}
+      ]
+    },
+    {
+      "drone_id": "Sim_CompletelyClear_FarWest_0800_0810",
+      "waypoints": [
+        {"x": -50, "y": 50, "timestamp": 800},
+        {"x": -60, "y": 50, "timestamp": 810}
+      ]
+    },
+    {
+      "drone_id": "Sim_Stationary_PotentialClash_0800_0820",
+      "comment": "Stationary drone, could clash if primary path goes through it.",
+      "waypoints": [
+        {"x": 50, "y": 50, "timestamp": 800},
+        {"x": 50, "y": 50, "timestamp": 820}
       ]
     }
   ]
