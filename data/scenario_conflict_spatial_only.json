@@ -1,21 +1,21 @@
 {
   "primary_mission": {
-    "drone_id": "P_SpatialOnly_3D",
+    "drone_id": "P_SpatialParallel_3D",
     "waypoints": [
       {"x": 0, "y": 0, "z": 10},
-      {"x": 100, "y": 100, "z": 10}
+      {"x": 100, "y": 0, "z": 10}
     ],
     "start_time": 1400, 
     "end_time": 1410    
   },
   "simulated_missions": [
     {
-      "drone_id": "S_Crosses_Later_3D",
+      "drone_id": "S_ParallelClose_Later_3D",
       "waypoints": [
-        {"x": 0, "y": 100, "z": 10, "timestamp": 1500}, 
-        {"x": 100, "y": 0, "z": 10, "timestamp": 1505} 
+        {"x": 0, "y": 1, "z": 10, "timestamp": 1500}, 
+        {"x": 100, "y": 1, "z": 10, "timestamp": 1510} 
       ],
-      "comment": "Original had sim start time 1500, end 1510. Explicit timestamp used here for clarity that waypoints define a path segment. For spatial_only, the key is that times 1400-1410 for primary and 1500-1505 for this sim segment do not overlap even if paths cross."
+      "comment": "Paths are parallel, 1 unit apart in Y. Spatially close, but primary operates 1400-1410 and simulated 1500-1510, so no temporal overlap. No X-cross."
     }
   ]
 } 

@@ -89,8 +89,8 @@ def _plot_path(ax, waypoints: List[Waypoint], color: str, label: str, linestyle:
     else:
         ax.plot(x, y, marker=marker, linestyle=linestyle, color=color, label=label, markersize=markersize)
         # Optionally label waypoints with time in 2D
-        # for wp in waypoints:
-        #     ax.text(wp.x, wp.y, f' {wp.timestamp_minutes}m', fontsize=8, color=color)
+    # for wp in waypoints:
+    #     ax.text(wp.x, wp.y, f' {wp.timestamp_minutes}m', fontsize=8, color=color)
 
 def _parse_conflict_details(conflict_details: List[str]) -> dict:
     """Parses conflict detail strings to extract relevant entities (segments, waypoints).
