@@ -1,21 +1,21 @@
 {
   "primary_mission": {
-    "drone_id": "P_SpatialParallel_3D",
+    "drone_id": "P_CrashTarget_3D",
     "waypoints": [
       {"x": 0, "y": 0, "z": 10},
       {"x": 100, "y": 0, "z": 10}
     ],
-    "start_time": 1400, 
-    "end_time": 1410    
+    "start_time": "1400", 
+    "end_time": "1410"    
   },
   "simulated_missions": [
     {
-      "drone_id": "S_ParallelClose_Later_3D",
+      "drone_id": "S_WeirdCrash_DiffSpeed_3D",
       "waypoints": [
-        {"x": 0, "y": 1, "z": 10, "timestamp": 1500}, 
-        {"x": 100, "y": 1, "z": 10, "timestamp": 1510} 
+        {"x": 70, "y": -20, "z": 10, "timestamp": "1405"}, 
+        {"x": 90, "y": 20, "z": 10, "timestamp": "1411"} 
       ],
-      "comment": "Paths are parallel, 1 unit apart in Y. Spatially close, but primary operates 1400-1410 and simulated 1500-1510, so no temporal overlap. No X-cross."
+      "comment": "Primary (0,0,10)-(100,0,10) active 14:00-14:10 (reaches (80,0,10) at 14:08). Simulated (70,-20,10)-(90,20,10) with waypoints timestamped 14:05 & 14:11 (reaches (80,0,10) at 14:08). Paths intersect in a 'weird' way, speeds differ, mission times overlap, and drones CRASH. This is a spatio-temporal conflict."
     }
   ]
 } 

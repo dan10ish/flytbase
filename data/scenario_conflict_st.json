@@ -1,6 +1,6 @@
 {
   "primary_mission": {
-    "drone_id": "P_Conflict_ST_3D",
+    "drone_id": "P_NearMiss_ST_3D",
     "waypoints": [
       {"x": 0, "y": 0, "z": 10},
       {"x": 100, "y": 0, "z": 10}
@@ -10,12 +10,12 @@
   },
   "simulated_missions": [
     {
-      "drone_id": "S_Tbone_ST_3D",
+      "drone_id": "S_ParallelClose_ST_3D",
       "waypoints": [
-        {"x": 50, "y": -5, "z": 12, "timestamp": 904}, 
-        {"x": 50, "y": 5, "z": 8, "timestamp": 906} 
+        {"x": 0, "y": 3, "z": 10, "timestamp": 900}, 
+        {"x": 100, "y": 3, "z": 10, "timestamp": 910} 
       ],
-      "comment": "Primary (0,0,10)-(100,0,10) @ T=900-910. Simulated (50,-5,12)-(50,5,8) with waypoints timestamped 904 and 906. Both paths lead to (50,0,10) at T=905, causing a spatio-temporal conflict (T-bone collision). This avoids an X-cross of segments."
+      "comment": "Paths are parallel, 3 units apart in Y. Both active 900-910. Should be a spatio-temporal conflict due to proximity and simultaneous activity, without X-cross."
     }
   ]
 } 
